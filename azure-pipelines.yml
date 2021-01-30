@@ -1,0 +1,74 @@
+# ASP.NET Core (.NET Framework)
+# Build and test ASP.NET Core projects targeting the full .NET Framework.
+# Add steps that publish symbols, save build artifacts, and more:
+# https://docs.microsoft.com/azure/devops/pipelines/languages/dotnet-core
+
+trigger:
+- main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  DECODE_PERCENTS: false 
+  solution: '**/*.sln'
+  GitUser: 'donet-feats'
+  GitEmail: 'notyetcrazymimi@gmail.com'
+  buildPlatform: 'Any CPU'
+  buildConfiguration: 'Release'
+  isMain: $[eq(variables['Build.SourceBranch'], 'refs/heads/main')]
+  LastCommit: $SYSTEM_PULLREQUEST_SOURCECOMMITID
+
+steps:
+- task: NuGetToolInstaller@1
+
+- task: gitversion/setup@0
+  displayName: 'Installing Git version'
+  inputs:
+    versionSpec: '5.x'
+
+- task: gitversion/execute@0
+  displayName: 'Version'
+  name: Version
+
+- task: DotNetCoreCLI@2
+  displayName: 'tests'
+  inputs:
+    command: 'test'
+    projects: 'feats.client.sln'
+    testRunTitle: 'all tests'
+    arguments: '--configuration $(buildConfiguration) /p:CollectCoverage=true /p:CoverletOutput=$(Build.SourcesDirectory)/CoverageResults/ /p:MergeWith=$(Build.SourcesDirectory)/CoverageResults/coverage.json /p:CoverletOutputFormat=json%2ccobertura -m:1'
+
+- task: PublishCodeCoverageResults@1
+  displayName: 'Publish code coverage report'
+  inputs:
+    codeCoverageTool: 'Cobertura'
+    summaryFileLocation: '$(Build.SourcesDirectory)/CoverageResults/**.cobertura.xml'
+
+- task: CmdLine@2
+  displayName: "Tagging version"
+  inputs:
+    script: |
+      git tag -a "v$(GitVersion.SemVer)" -m "v$(GitVersion.SemVer)" "$(LastCommit)"
+      git push origin "v$(GitVersion.SemVer)"
+    failOnStderr: false
+  condition: and(succeeded(), eq(variables.isMain, true))
+  
+- task: NuGetCommand@2
+  inputs:
+    command: 'pack'
+    packagesToPack: '**/Feats.Evaluation.Client.csproj'
+    versioningScheme: 'byEnvVar'
+    versionEnvVar: 'GitVersion.SemVer'
+    includeSymbols: true
+
+- task: NuGetAuthenticate@0
+  displayName: 'NuGet Authenticate'
+
+- task: NuGetCommand@2
+  inputs:
+    command: 'push'
+    packagesToPush: '$(Build.ArtifactStagingDirectory)/**/*.nupkg;!$(Build.ArtifactStagingDirectory)/**/*.symbols.nupkg'
+    nuGetFeedType: 'internal'
+    publishVstsFeed: 'dotnet-feats-feed'
+  condition: and(succeeded(), eq(variables.isMain, true))
