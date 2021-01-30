@@ -20,12 +20,15 @@ No matter what configuration provider you have, the client requires the followin
 ```json
 {
     "feats": {
-        "host": "yourhost-must-be-a-proper-uri",
-        "request_timeout_in_seconds" : 300, // optional, default is 300
-        "cache_timeout_in_seconds" : 30 // optional, default is 30
+        "host": "your-host-must-be-a-proper-uri",
+        "request_timeout_in_seconds" : 300,
+        "cache_timeout_in_seconds" : 30
     }
 }
 ```
+
+`request_timeout_in_seconds` is optional and the default value is 300.
+`cache_timeout_in_seconds` is optional and the default value is 30.
 
 ### Injecting client in DI
 
