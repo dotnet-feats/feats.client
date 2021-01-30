@@ -22,6 +22,9 @@ variables:
 steps:
 - task: NuGetToolInstaller@1
 
+- checkout: self
+  persistCredentials: true
+
 - task: CmdLine@2
   displayName: "Git profile"
   inputs:
@@ -39,6 +42,7 @@ steps:
 - script: |
     echo $(LastCommit)
   name: "CurrentLastCommit"
+
 - task: gitversion/setup@0
   displayName: 'Installing Git version'
   inputs:
@@ -78,9 +82,11 @@ steps:
     versioningScheme: 'byEnvVar'
     versionEnvVar: 'GitVersion.SemVer'
     includeSymbols: true
+  condition: and(succeeded(), eq(variables.isMain, true))
 
 - task: NuGetAuthenticate@0
   displayName: 'NuGet Authenticate'
+  condition: and(succeeded(), eq(variables.isMain, true))
 
 - task: NuGetCommand@2
   inputs:
